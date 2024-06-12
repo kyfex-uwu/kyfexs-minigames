@@ -1,0 +1,13 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:block/white_stained_glass"
+  },
+
+  "overrides": [
+    { "predicate": { "custom_model_data": 2990 }, "model": "kyfexs_minigames:up_arrow" },
+    { "predicate": { "custom_model_data": 2991 }, "model": "kyfexs_minigames:down_arrow" },
+    { "predicate": { "custom_model_data": 2992 }, "model": "kyfexs_minigames:left_arrow" },
+    { "predicate": { "custom_model_data": 2993 }, "model": "kyfexs_minigames:right_arrow" }
+  ]
+}
