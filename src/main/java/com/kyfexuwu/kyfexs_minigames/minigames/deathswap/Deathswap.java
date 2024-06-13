@@ -34,6 +34,12 @@ public class Deathswap extends Minigame {
         public GameSettings(Deathswap inst){
             this.inst=inst;
         }
+        public int getMinSecs(){
+            return this.timeIsRandom?this.minSecs:this.maxSecs;
+        }
+        public int getMaxSecs(){
+            return this.maxSecs;
+        }
     }
     private final GameSettings settings = new GameSettings(this);
 
@@ -80,11 +86,14 @@ public class Deathswap extends Minigame {
 
             //find good spot for player and put them there
             var tpPos = SafeTP.spiral(i);
-            SafeTP.teleport(player, world,
+            while(!SafeTP.teleport(player, world,
                     tpPos.x*200000+(int)(Math.random()*20000)-10000,
-                    tpPos.y*200000+(int)(Math.random()*20000)-10000);
+                    tpPos.y*200000+(int)(Math.random()*20000)-10000)){}
 
             this.settings.kit.init(player);
+            player.setHealth(player.getMaxHealth());
+            player.getHungerManager().setFoodLevel(20);
+            player.getHungerManager().setSaturationLevel(5);
 
             ((SPEDeathListener)player).addDeathOrLogoutListener(()->{
                 this.alivePlayers.remove(player);
@@ -143,7 +152,8 @@ public class Deathswap extends Minigame {
     }
     private record SwapPos(Vec3d pos, float pitch, float yaw, ServerWorld world){}
     private void resetTimer(){
-        this.timer = 20*((int)(Math.random()*(this.settings.maxSecs-this.settings.minSecs))+this.settings.minSecs);
+        this.timer = 20*((int)(Math.random()*(this.settings.getMaxSecs()-this.settings.getMinSecs()))+
+                this.settings.getMinSecs());
     }
     private void swap(){
         this.resetTimer();
@@ -168,12 +178,33 @@ public class Deathswap extends Minigame {
     private static String formattedTime(int seconds){
         return (seconds/60)+":"+(seconds%60<10?"0":"")+(seconds%60);
     }
+    private static ItemStack withTime(ItemStack stack, GameSettings arg, boolean affectingMin, int addAmt){
+        String changeStr = (addAmt>0?" +":" ")+addAmt;
+
+        return Utils.withLore(stack,
+                arg.timeIsRandom?new Utils.EasyNBTText[][]{
+                        {Utils.EasyNBTText.fromStrNoI("Min Time: " + formattedTime(arg.getMinSecs())),
+                        new Utils.EasyNBTText(affectingMin && addAmt != 0 ?
+                                (changeStr + " (" + formattedTime(arg.getMinSecs() + addAmt) + ")") : "",
+                                "gray", false, true, false, false, false)},
+                        {Utils.EasyNBTText.fromStrNoI("Max Time: " + formattedTime(arg.getMaxSecs())),
+                        new Utils.EasyNBTText(affectingMin && addAmt != 0 ? "" :
+                                (changeStr + " (" + formattedTime(arg.getMaxSecs() + addAmt) + ")"),
+                                "gray", false, true, false, false, false)}
+                }:new Utils.EasyNBTText[][]{
+                        {Utils.EasyNBTText.fromStrNoI("Time: " + formattedTime(arg.getMaxSecs())),
+                        new Utils.EasyNBTText(
+                                (changeStr + " (" + formattedTime(arg.getMaxSecs() + addAmt) + ")"),
+                                "gray", false, true, false, false, false)}
+                });
+    }
+    private static final ItemStack immovable = ServerGUIs.IMMOVABLE.getItem(null,null,null);
     private static final InvGUI.Template<GameSettings> config = new InvGUI.Template<GameSettings>(
             ServerGUIs.ScreenType.GENERIC_9X5, Text.of("Config"),
             InvGUIItem.decode("#########" +
-                    "#  #Aa#r#" +
-                    "#  #Dd###" +
-                    "#  #Ss#B#" +
+                    "#r#Aa#  #" +
+                    "###Dd#  #" +
+                    "#B#Ss#  #" +
                     "#########",
                     new InvGUIItem.InvGUIEntry('#', ServerGUIs.IMMOVABLE),
                     new InvGUIItem.InvGUIEntry('r', new RenderedInvGUIItem<GameSettings>(
@@ -194,60 +225,65 @@ public class Deathswap extends Minigame {
                             Items.GREEN_GLAZED_TERRACOTTA, Text.of("Start"), 1,
                             (slotIndex, button, actionType, player, thisInv, argument) -> {
                                 var cArg = ((GameSettings) argument);
-                                if(!cArg.timeIsRandom) cArg.minSecs=cArg.maxSecs;
                                 cArg.inst.start();
                                 thisInv.getHandler().closeQuietly();
                             })),
 
                     new InvGUIItem.InvGUIEntry('D', new RenderedInvGUIItem<>(
-                            (serverPlayerEntity, invGUI, arg) -> Utils.withLore(Items.CLOCK.getDefaultStack()
-                                    .setCustomName(Text.of((arg.timeIsRandom?"Max Time - ":"Time - ")+
-                                            formattedTime(arg.maxSecs))),
-                                    Utils.easierNBTText("The "+(arg.timeIsRandom?"maximum ":"")+
-                                            "amount of time before the swap")),
-                            (ClickConsumer<GameSettings>) ServerGUIs.nothingClick()
-                    )),
-                    new InvGUIItem.InvGUIEntry('A', new RenderedInvGUIItem<GameSettings>(
-                            (serverPlayerEntity, invGUI, arg) -> Utils.UP_ARROW.copy()
-                                    .setCustomName(Text.of("+10s")),
-                            (slotIndex, button, actionType, player, thisInv, argument) -> {
-                                argument.maxSecs += 10;
-                                thisInv.getHandler().refresh();
-                            }
-                    )),
-                    new InvGUIItem.InvGUIEntry('S', new RenderedInvGUIItem<GameSettings>(
-                            (serverPlayerEntity, invGUI, arg) -> Utils.DOWN_ARROW.copy()
-                                    .setCustomName(Text.of("-10s")),
-                            (slotIndex, button, actionType, player, thisInv, argument) -> {
-                                argument.maxSecs = Math.max(10, argument.maxSecs - 10);
-                                argument.minSecs = Math.min(argument.maxSecs, argument.minSecs);
-                                thisInv.getHandler().refresh();
-                            }
-                    )),
-
-                    new InvGUIItem.InvGUIEntry('d', new RenderedInvGUIItem<>(
-                            (serverPlayerEntity, invGUI, arg) -> !arg.timeIsRandom?ItemStack.EMPTY:
+                            (serverPlayerEntity, invGUI, arg) -> !arg.timeIsRandom?immovable:
                                     Utils.withLore(Items.CLOCK.getDefaultStack().setCustomName(Text.of(
                                             "Min Time - "+formattedTime(arg.minSecs))),
                                             Utils.easierNBTText("The minimum amount of time before the swap")),
                             (ClickConsumer<GameSettings>) ServerGUIs.nothingClick()
                     )),
-                    new InvGUIItem.InvGUIEntry('a', new RenderedInvGUIItem<GameSettings>(
-                            (serverPlayerEntity, invGUI, arg) -> !arg.timeIsRandom?ItemStack.EMPTY:
-                                    Utils.UP_ARROW.copy().setCustomName(Text.of("+10s")),
+                    new InvGUIItem.InvGUIEntry('A', new RenderedInvGUIItem<GameSettings>(
+                            (serverPlayerEntity, invGUI, arg) -> !arg.timeIsRandom?immovable:
+                                    withTime(Utils.UP_ARROW.copy().setCustomName(Text.of("+10s")),
+                                            arg, true, +10),
                             (slotIndex, button, actionType, player, thisInv, argument) -> {
                                 if(!argument.timeIsRandom) return;
+
                                 argument.minSecs+=10;
-                                argument.maxSecs=Math.max(argument.maxSecs, argument.minSecs);
+                                argument.maxSecs=Math.max(argument.minSecs,argument.maxSecs);
+                                thisInv.getHandler().refresh();
+                            }
+                    )),
+                    new InvGUIItem.InvGUIEntry('S', new RenderedInvGUIItem<GameSettings>(
+                            (serverPlayerEntity, invGUI, arg) -> !arg.timeIsRandom?immovable:
+                                    withTime(Utils.DOWN_ARROW.copy().setCustomName(Text.of("-10s")),
+                                            arg, true, -10),
+                            (slotIndex, button, actionType, player, thisInv, argument) -> {
+                                if(!argument.timeIsRandom) return;
+
+                                argument.minSecs=Math.max(10, argument.minSecs-10);
+                                thisInv.getHandler().refresh();
+                            }
+                    )),
+
+                    new InvGUIItem.InvGUIEntry('d', new RenderedInvGUIItem<>(
+                            (serverPlayerEntity, invGUI, arg) ->
+                                    Utils.withLore(Items.CLOCK.getDefaultStack().setCustomName(Text.of(
+                                            (arg.timeIsRandom?"Max ":"")+"Time - "+formattedTime(arg.maxSecs))),
+                                            Utils.easierNBTText("The "+(arg.timeIsRandom?"":"maximum")+
+                                                    " amount of time before the swap")),
+                            (ClickConsumer<GameSettings>) ServerGUIs.nothingClick()
+                    )),
+                    new InvGUIItem.InvGUIEntry('a', new RenderedInvGUIItem<GameSettings>(
+                            (serverPlayerEntity, invGUI, arg) ->
+                                    withTime(Utils.UP_ARROW.copy().setCustomName(Text.of("+10s")),
+                                            arg, false, 10),
+                            (slotIndex, button, actionType, player, thisInv, argument) -> {
+                                argument.maxSecs+=10;
                                 thisInv.getHandler().refresh();
                             }
                     )),
                     new InvGUIItem.InvGUIEntry('s', new RenderedInvGUIItem<GameSettings>(
-                            (serverPlayerEntity, invGUI, arg) -> !arg.timeIsRandom?ItemStack.EMPTY:
-                                    Utils.DOWN_ARROW.copy().setCustomName(Text.of("-10s")),
+                            (serverPlayerEntity, invGUI, arg) ->
+                                    withTime(Utils.DOWN_ARROW.copy().setCustomName(Text.of("-10s")),
+                                            arg, false, -10),
                             (slotIndex, button, actionType, player, thisInv, argument) ->{
-                                if(!argument.timeIsRandom) return;
-                                argument.minSecs=Math.max(10, argument.minSecs-10);
+                                argument.maxSecs=Math.max(10,argument.maxSecs-10);
+                                argument.minSecs=Math.min(argument.minSecs, argument.maxSecs);
                                 thisInv.getHandler().refresh();
                             }
                     ))
@@ -255,7 +291,7 @@ public class Deathswap extends Minigame {
                         var items=template.items.clone();
                         for(int y=0;y<3;y++){
                             for(int x=0;x<2;x++){
-                                items[10+y*9+x] = Kit.kitSelector(y*2+x);
+                                items[15+y*9+x] = Kit.kitSelector(y*2+x);
                             }
                         }
 

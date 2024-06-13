@@ -29,13 +29,16 @@ public class SafeTP {
             return "("+this.x+", "+this.y+")";
         }
     }
-    public static void teleport(ServerPlayerEntity player, ServerWorld world, int xP, int zP){
+    public static boolean teleport(ServerPlayerEntity player, ServerWorld world, int xP, int zP){
+        return teleport(player, world, xP, zP, 25);
+    }
+    public static boolean teleport(ServerPlayerEntity player, ServerWorld world, int xP, int zP, int attempts){
         int counter=0;
         int x=xP;
         int z=zP;
 
         var teleported=false;
-        while(true){
+        while(counter<attempts){
             var destChunk = world.getChunk(x/16, z/16);
             var heightmap = destChunk.getHeightmap(Heightmap.Type.MOTION_BLOCKING);
             for(int subX=-1;subX<=1;subX++){
@@ -58,5 +61,6 @@ public class SafeTP {
             z=zP+newPos.y*16;
             counter++;
         }
+        return teleported;
     }
 }

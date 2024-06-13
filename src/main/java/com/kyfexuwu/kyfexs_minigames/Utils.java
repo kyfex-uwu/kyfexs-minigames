@@ -53,16 +53,22 @@ public class Utils {
         return toReturn.toArray(new EasyNBTText[0][0]);
     }
     public static ItemStack withLore(ItemStack stack, EasyNBTText[]... lines){
-        var loreList = new NbtList();
-        for(var lore : lines){
-            List<String> sublist = new ArrayList<>();
-            for(var section : lore){
-                sublist.add(section.toNBTString());
-            }
-            loreList.add(NbtString.of("["+String.join(",", sublist)+"]"));
+        var display = stack.getOrCreateSubNbt("display");
+        var lore = display.getList("Lore", 8);
+        if(lore==null){
+            lore = new NbtList();
+            display.put("Lore", lore);
         }
 
-        stack.getOrCreateSubNbt("display").put("Lore", loreList);
+        for(var line : lines){
+            List<String> sublist = new ArrayList<>();
+            for(var section : line){
+                sublist.add(section.toNBTString());
+            }
+            lore.add(NbtString.of("["+String.join(",", sublist)+"]"));
+        }
+
+        stack.getSubNbt("display").put("Lore", lore);
         return stack;
     }
 

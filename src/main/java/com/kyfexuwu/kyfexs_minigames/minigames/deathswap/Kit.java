@@ -1,28 +1,31 @@
 package com.kyfexuwu.kyfexs_minigames.minigames.deathswap;
 
+import com.kyfexuwu.kyfexs_minigames.CustomItems;
 import com.kyfexuwu.kyfexs_minigames.Utils;
 import com.kyfexuwu.server_guis.RenderedInvGUIItem;
-import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.text.LiteralText;
+import net.minecraft.text.Style;
+import net.minecraft.text.TextColor;
 
 import java.util.*;
 
 public abstract class Kit {
     public static final Kit[] kits = {
-            new Kit(Items.BARRIER.getDefaultStack().setCustomName(Text.of("None"))){},
-            new Kit(Items.LEATHER_HELMET.getDefaultStack().setCustomName(Text.of("Basic"))){
+            new Kit(Items.BARRIER.getDefaultStack().setCustomName(new LiteralText("None")
+                    .setStyle(Style.EMPTY.withColor(TextColor.parse("white"))))){},
+            new Kit(Items.LEATHER_HELMET.getDefaultStack().setCustomName(new LiteralText("Basic")
+                    .setStyle(Style.EMPTY.withColor(TextColor.parse("white"))))){
                 @Override
                 public void init(ServerPlayerEntity player) {
                     super.init(player);
@@ -34,7 +37,8 @@ public abstract class Kit {
                             Kit.withCount(Items.BREAD.getDefaultStack(), 10));
                 }
             },
-            new Kit(Items.DIAMOND_CHESTPLATE.getDefaultStack().setCustomName(Text.of("To The Nines"))) {
+            new Kit(Items.DIAMOND_CHESTPLATE.getDefaultStack().setCustomName(new LiteralText("To The Nines")
+                    .setStyle(Style.EMPTY.withColor(TextColor.parse("white"))))) {
                 private double health;
                 @Override
                 public void init(ServerPlayerEntity player) {
@@ -64,7 +68,8 @@ public abstract class Kit {
                     player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(this.health);
                 }
             },
-            new Kit(Items.FIREWORK_ROCKET.getDefaultStack().setCustomName(Text.of("High Flier"))) {
+            new Kit(Items.FIREWORK_ROCKET.getDefaultStack().setCustomName(new LiteralText("High Flier")
+                    .setStyle(Style.EMPTY.withColor(TextColor.parse("white"))))) {
                 @Override
                 public void init(ServerPlayerEntity player) {
                     super.init(player);
@@ -74,11 +79,12 @@ public abstract class Kit {
                     elytra.addEnchantment(Enchantments.VANISHING_CURSE, 1);
                     var boots = Items.LEATHER_BOOTS.getDefaultStack();
                     boots.addEnchantment(Enchantments.FEATHER_FALLING, 5);
-                    elytra.addEnchantment(Enchantments.BINDING_CURSE, 1);
-                    elytra.addEnchantment(Enchantments.VANISHING_CURSE, 1);
+                    boots.addEnchantment(Enchantments.BINDING_CURSE, 1);
+                    boots.addEnchantment(Enchantments.VANISHING_CURSE, 1);
                     this.giveRemovableItems(player,
                             elytra,
-                            boots);
+                            boots,
+                            CustomItems.INF_ROCKET.getDefaultStack());
                 }
             }
     };

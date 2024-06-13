@@ -64,9 +64,10 @@ public class Screens {
             this.players.add(leader);
         }
     }
-    static InvGUIItem removePlayerButton(List<ServerPlayerEntity> players, Supplier<Integer> indexSupplier){
+    static InvGUIItem removePlayerButton(Supplier<List<ServerPlayerEntity>> playerSupplier, Supplier<Integer> indexSupplier){
         return new RenderedInvGUIItem<>((serverPlayerEntity, invGUI, o) -> {
             var index = indexSupplier.get();
+            var players = playerSupplier.get();
             if(index<0||index>=players.size()) return ItemStack.EMPTY;
             var player = players.get(index);
 
@@ -74,6 +75,7 @@ public class Screens {
                     .setCustomName(Text.of("Remove " + player.getName().getString()));
         }, (slotIndex, button, actionType, player, thisInv, argument) -> {
             var index = indexSupplier.get();
+            var players = playerSupplier.get();
             if(index<0||index>=players.size()) return;
             var clickedPlayer = players.get(index);
             if(clickedPlayer.equals(player)) return;
@@ -83,9 +85,10 @@ public class Screens {
             Utils._try(()->thisInv.getHandler().refresh());
         });
     }
-    static InvGUIItem addPlayerButton(List<ServerPlayerEntity> players, Supplier<Integer> indexSupplier){
+    static InvGUIItem addPlayerButton(Supplier<List<ServerPlayerEntity>> playerSupplier, Supplier<Integer> indexSupplier){
         return new RenderedInvGUIItem<>((serverPlayerEntity, invGUI, o) -> {
             var index = indexSupplier.get();
+            var players = playerSupplier.get();
             if(index<0||index>=players.size()) return ItemStack.EMPTY;
             var player = players.get(index);
 
@@ -93,6 +96,7 @@ public class Screens {
                     .setCustomName(Text.of("Invite " + player.getName().getString()));
         }, (slotIndex, button, actionType, player, thisInv, argument) -> {
             var index = indexSupplier.get();
+            var players = playerSupplier.get();
             if(index<0||index>=players.size()) return;
             var clickedPlayer = players.get(index);
 
@@ -168,20 +172,22 @@ public class Screens {
             .toBuild((player, template, argument) -> {
                 var items = template.items.clone();
 
-                var inPlayers = new ArrayList<>(argument.players);
-                inPlayers.remove(player);
                 for(int i=0;i<7;i++){
                     int finalI = i;
-                    items[10+i] = removePlayerButton(inPlayers, ()-> finalI +argument.addedPage*7);
+                    items[10+i] = removePlayerButton(()->{
+                        var toReturn = new ArrayList<>(argument.players);
+                        toReturn.remove(player);
+                        return toReturn;
+                    }, ()-> finalI +argument.addedPage*7);
                 }
 
-                var allPlayers = player.server.getPlayerManager().getPlayerList().stream()
-                        .filter(p->!p.equals(player))
-                        .sorted(Comparator.comparing(o -> o.getName().getString()))
-                        .toList();
+                var manager = player.server.getPlayerManager();
                 for(int i=0;i<14;i++){
                     int finalI = i;
-                    items[28 + i + (i / 7 * 2)] = addPlayerButton(allPlayers, ()->finalI + argument.allPage * 14);
+                    items[28 + i + (i / 7 * 2)] = addPlayerButton(()->
+                            manager.getPlayerList().stream().filter(p->!argument.players.contains(p))
+                                    .sorted(Comparator.comparing(o -> o.getName().getString()))
+                                    .toList(), ()->finalI + argument.allPage * 14);
                 }
 
                 return new InvGUI<>(template.type,template.title,items);
